@@ -1,0 +1,102 @@
+---
+title: "Dysregulated processes in NAFLD (BB103X)"
+author: "Hong Yang"
+date: "26/01/2022"
+output:
+  slidy_presentation: default
+  number_sections: True
+  ioslides_presentation: default
+  beamer_presentation: default
+  powerpoint_presentation: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{css, echo=FALSE}
+h1, h2 {
+  text-align: center;
+  color: black;
+  font-weight: bold;
+}
+```
+
+## Background
+Non-alcoholic fatty liver disease (NAFLD)[^1][^2]:
+
+- affects ~25% of the global adult population
+- compasses NAFL (fatty liver) and NASH (steatohepatitis)
+- can progress to cirrhosis and hepatocellular carcinoma (HCC)
+- is the fastest growing cause of HCC
+
+![](images/Figure1.png){width=50%}
+
+[^1]: Pharmacological Reports volume 72, pages1–12 (2020)
+[^2]: Nature Reviews Gastroenterology & Hepatology volume 18, pages223–238 (2021)
+
+## Relationships between NAFLD and other disease
+
+- NAFLD is strongly associated with obesity, diabetes, CVD[^3]
+- Drastically increased in patient groups with these diseases
+
+![](images/Figure2.png){width=50%}
+
+## Mechanisms of NAFLD development and therapeutic strategies
+
+**Management strategies (lifestyle interventions)**
+
+- weight loss
+- healthier life style habits (physical exercises, diet etc.)
+
+**Molecular aspects (heterogeneous):**
+
+- many molecular pathways that contribute to the development of NAFLD
+- pathogenic drivers are not likely to be identical among all patients
+
+
+**There are still no approved pharmacological therapies for NAFLD!!**[^4]
+
+## Aim & Method
+
+- investigate the molecular mechanisms underlying NAFLD progression
+
+**RNA sequencing data**[^5]
+
+![](images/Figure3.png){width=50%}
+
+
+## Basic analysis and advanced analysis
+
+- Raw sequencing reads in fastq format
+- Mapped to the genome using alignment software
+- Summarise reads over genes to generate a count table
+- Determine differentially expressed genes using R
+- Exploratory analyses: pathway enrichment and disease association analysis
+
+## Data
+
+- Public datasets shared by other study[^6] and metadata can be found from GEO
+
+[GSE135251](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE135251)
+
+- fastq files can be found in ENA database based on its projectID
+
+[PRJNA558102](https://www.ebi.ac.uk/ena/browser/view/PRJNA558102?show=reads)
+
+## Preparation
+
+Software need to be installed on PC:
+
+- R (https://ftpmirror1.infania.net/mirror/CRAN/)
+- Rstudio (https://www.rstudio.com/products/rstudio/)
+- Filezila (https://filezilla-project.org/)
+- putty (https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html) only if you are using windows
+
+
+[^1]: Pharmacological Reports volume 72, pages1–12 (2020)
+[^2]: Nature Reviews Gastroenterology & Hepatology volume 18, pages223–238 (2021)
+[^3]: Nature Reviews Gastroenterology & Hepatology volume 18, pages24–39 (2021)
+[^4]: Nature Medicine volume 24, pages908–922 (2018)
+[^5]: Nature Reviews Genetics volume 20, pages631–656 (2019)
+[^6]: Sci Transl Med 2020 Dec 2;12(572)

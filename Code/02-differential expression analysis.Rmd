@@ -1,0 +1,279 @@
+---
+title: "Dysregulated processes in NAFLD (BB103X)"
+author: "Hong Yang"
+date: "10/02/2022"
+output:
+  pdf_document: default
+  number_sections: yes
+  ioslides_presentation: default
+  html_document:
+    df_print: paged
+  powerpoint_presentation: default
+  beamer_presentation: default
+  slidy_presentation: default
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(engine.opts = list(bash = "-l"))
+```
+
+```{css, echo=FALSE}
+h1, h2 {
+  text-align: center;
+  color: black;
+  font-weight: bold;
+}
+```
+
+## 2.1 Load necessary packages
+
+- Rstudio
+- load packages (need each time you run your code when you come back from )
+
+```{r, message=FALSE}
+library(DESeq2)
+library(pheatmap)
+library(tidyverse)
+library(xlsx)
+library(readxl)
+library(gplots)
+library(ggbiplot)
+library(piano)
+library(venn)
+library(clusterProfiler)
+library(GEOquery)
+library(openxlsx)
+library(GEOquery)
+```
+
+## 2.2 Load data you've prepared
+
+-metadata: characteristics of samples
+
+-count: count values of genes fro each sample
+
+-Those 2 data tables need to be merged at end of the pro-processing step
+
+```{r}
+metadata = read.xlsx('./data/DGSE135251_metadata.xlsx')
+sample2count = read.xlsx('./data/DGSE135251_sample2count_str.xlsx')
+```
+
+## 2.3 What the data looks like? (1)
+
+```{r}
+## Metadata
+metadata[1:6,1:4]
+```
+
+- This table contains all the clinical information of samples in this study 
+
+```{r}
+sample2count[1:8,1:6]
+```
+
+- This table contains the count of each gene in each sample.
+
+## 2.4 What the data looks like? (2)
+
+- Check all the columns that metadata table contains
+```{r}
+colnames(metadata)
+```
+
+- Summary of samples in each group 
+
+```{r}
+table(metadata$`group.in.paper:ch1`)
+```
+
+- Summary of samples in each fibrosis stage
+
+```{r}
+table(metadata$`fibrosis.stage:ch1`)
+```
+
+- Check other columns using the above code (just change the column names behind '$') 
+
+
+## 2.5 Annotate count table by ID conversion (*)
+
+- It is not obvious when we look at the ID of gene, for example, ENSG00000000005. So we need to convert this ID to gene name.
+- [ENSG00000000005](https://www.ensembl.org/Homo_sapiens/Gene/Summary?db=core;g=ENSG00000000005;r=X:100584936-100599885) is identifier of gene TNMN in database Ensembl
+- 
+
+![](images/Figure5.png)
+
+## 2.6 (*) Download a table for annotation
+
+- This table would contain 2 columns, 1st column is ID, 2nd column is gene name
+- Using BioMart in Ensembl
+- https://www.ensembl.org/index.html
+
+![](images/Figure6.png){width=80%}
+
+- save the result under 'data' folder and name as 'ID2genename.database.txt'
+
+## 2.7 Load annotation table into R
+
+```{r}
+ID2gene = read.table('./data/ID2genename.database.txt', sep = '\t', header = TRUE) %>% distinct()
+head(ID2gene)
+```
+
+## 2.8 Merge annotation table into count table
+
+```{r}
+count_reindex = merge(sample2count, ID2gene, by.x = 'ID', by.y = 'Gene.stable.ID') %>% 
+  select(Gene.name, everything())
+
+### Check if we mapped data correctly
+(count_reindex %>% filter(ID == 'ENSG00000198888'))[,1:6]
+```
+
+ ## 2.9 Processing the case with one gene related to multiple ID
+ 
+ - for example: gene 'ABHD16A'
+```{r}
+(count_reindex %>% filter(Gene.name == 'ABHD16A'))[,1:6]
+```
+
+- take one row that have high expression value across samples
+### First of all, find all the rows need to be processed.
+
+```{r}
+
+count_multipleIDs = count_reindex %>% select(Gene.name) %>% group_by(Gene.name) %>% tally() %>% filter(n >1)
+head(count_multipleIDs)
+```
+
+### the number of genes with multiple IDs
+
+```{r}
+dim(count_multipleIDs)
+```
+### Second, calculate the mean value of each ID and decide which row will take for downstream analysis based on above statistics
+### Multiple steps for this process
+
+### a. filter rows that have the gene names with multiple IDs
+### b. filter out rows that contain nothing in column 'Gene.name'
+### c. convert count value to numeric since it is character now, which cann't be used for calculation
+### d. calculate the mean count value across samples and add a new columns named as 'mean_row'
+### e. put the column 'mean_row' at the begining of this subset table
+
+```{r}
+count_multipleIDs_subset = count_reindex %>% filter(Gene.name %in% count_multipleIDs$Gene.name) %>% 
+  filter(Gene.name != '') %>% mutate(across(starts_with('GSM'), ~as.numeric(.))) %>% 
+  mutate(mean_row = rowMeans(across(where(is.numeric)))) %>% select(mean_row, everything()) %>% 
+  arrange(., desc(Gene.name))
+
+### 
+count_multipleIDs_subset[1:6,1:6]
+```
+### Third, subset the dataset based on above calculation
+
+```{r}
+count_multipleIDs_subset_selected = count_multipleIDs_subset %>%
+  group_by(Gene.name) %>% slice_max(mean_row) %>% 
+  filter(!(mean_row == 0)) %>% arrange(., desc(Gene.name))
+
+count_multipleIDs_subset_selected[1:6,1:6]
+```
+### Finally, combine rows with multiple ID after filtering and rows with unique IDs
+
+```{r}
+count_uniqueIDs = count_reindex %>% filter(!(Gene.name %in% count_multipleIDs$Gene.name))
+count_multipleIDs_subset_selected = count_multipleIDs_subset_selected %>% select(-mean_row)
+
+sample2count_processed = rbind(count_uniqueIDs, count_multipleIDs_subset_selected)
+dim(sample2count_processed)
+```
+
+**In summary, the proceed table contains the count data of 19452 protein-coding gene.**
+
+```{r}
+sample2count_processed[1:6, 1:6]
+```
+
+## 2.10 The results would be expected to be count matrix
+
+- Gene name would be setted to be row names
+
+```{r}
+sample2count_processed = as.matrix(sample2count_processed %>% 
+  column_to_rownames(., var = 'Gene.name') %>% select(-ID))
+
+mode(sample2count_processed) = 'numeric'
+sample2count_processed[1:6,1:6]
+```
+
+## 2.11 Differential analysis
+
+- DeSeq package will be used in this step
+- Read the website carefully to study the methods implemented in this package
+- https://bioconductor.org/packages/release/bioc/vignettes/DESeq2/inst/doc/DESeq2.html
+
+```{bash, engine.opts='-l', message=FALSE}
+mkdir Figures
+```
+
+## 2.12 Generate DESeqDataSet (called dds)  
+
+- read [document](https://bioconductor.org/packages/release/bioc/vignettes/DESeq2/inst/doc/DESeq2.html) to study DESeqDataSet
+
+```{r}
+rownames(metadata) = metadata$geo_accession
+sample2count_processed = sample2count_processed[,rownames(metadata)]
+
+####Perform the Differential Expression Analysis
+conds=as.factor(metadata$`group.in.paper:ch1`)
+coldata = data.frame(row.names=rownames(metadata),conds)
+dds = DESeqDataSetFromMatrix(countData=round(as.matrix(sample2count_processed)),
+                              colData=coldata,
+                              design=~conds)
+```
+
+## 2.13 Gene-level exploratory analysis
+
+- PCA: principle component analyis, read [here](https://dockflow.org/workflow/rnaseq-gene/#exploratory-analysis-and-visualization)
+- Here is an example for PCA analysis based on vst transformation method,
+
+```{r}
+# PCA analysis
+vsd = vst(dds, blind = FALSE)
+pcadata = plotPCA(vsd,intgroup=c("conds"), returnData = TRUE)
+percentVar = round(100 * attr(pcadata, "percentVar")) 
+
+pcadata_p = ggplot(pcadata, aes(x = PC1, y = PC2, color = factor(conds))) + 
+  geom_point(size =3, aes(fill=factor(conds),shape=factor(conds))) + 
+  scale_shape_manual(values=c(16,18,17,15,14,13)) + 
+  xlab(paste0("PC1: ", percentVar[1], "% variance")) + ylab(paste0("PC2: ", percentVar[2], "% variance")) + 
+  theme(axis.text.x = element_blank(), axis.title = element_text(size = 16), legend.text = element_text(size = 12)) + theme_bw()
+
+ggsave(pcadata_p, filename = "./Figures/00-pca_group.pdf", height = 3.5, width = 5)
+```
+
+**please try other method (such as log2, rlog) and generate the graphs for the analyses.**
+
+## 2.14 Perform differential analysis
+
+- First of all, define the groups that you want to compare
+
+```{r}
+table(metadata$`group.in.paper:ch1`)
+```
+
+- for example, difference between control group and NAFL group
+
+```{r}
+dds_re = DESeq(dds)
+cond1 = 'NAFL' #First Condition
+cond2 = 'control' #Reference Condition
+res=results(dds_re,contrast=c('conds',cond1,cond2))
+res$Gene.name = res@rownames
+write.xlsx(res,file='./data/DEseq_results_NAFLvscontrol.xlsx')
+```
+
+**please complete all the comparisons that you want to look at the difference.**

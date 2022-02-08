@@ -133,28 +133,32 @@ count_reindex = merge(sample2count, ID2gene, by.x = 'ID', by.y = 'Gene.stable.ID
 (count_reindex %>% filter(ID == 'ENSG00000198888'))[,1:6]
 ```
 
- ## 2.9 Processing the case with one gene related to multiple ID
+## 2.9 Processing the case with one gene related to multiple ID
  
  - for example: gene 'ABHD16A'
 ```{r}
 (count_reindex %>% filter(Gene.name == 'ABHD16A'))[,1:6]
 ```
 
-- take one row that have high expression value across samples
-### First of all, find all the rows need to be processed.
+**Solution:** take one row that have high expression value across samples
+
+### **First of all**, find all the rows need to be processed.
 
 ```{r}
 
 count_multipleIDs = count_reindex %>% select(Gene.name) %>% group_by(Gene.name) %>% tally() %>% filter(n >1)
 head(count_multipleIDs)
 ```
+**n:** represents the number of rows (IDs) for one specific gene.
 
-### the number of genes with multiple IDs
+## The total number of genes with multiple IDs
 
 ```{r}
 dim(count_multipleIDs)
 ```
-### Second, calculate the mean value of each ID and decide which row will take for downstream analysis based on above statistics
+- The output indicates there are 692 genes with multiple IDs or null in 'Gene.name' columns.
+
+### **Second**, calculate the mean value of each ID and decide which row will take for downstream analysis based on above statistics
 ### Multiple steps for this process
 
 ### a. filter rows that have the gene names with multiple IDs
@@ -164,7 +168,8 @@ dim(count_multipleIDs)
 ### e. put the column 'mean_row' at the begining of this subset table
 
 ```{r}
-count_multipleIDs_subset = count_reindex %>% filter(Gene.name %in% count_multipleIDs$Gene.name) %>% 
+count_multipleIDs_subset = count_reindex %>% 
+  filter(Gene.name %in% count_multipleIDs$Gene.name) %>% 
   filter(Gene.name != '') %>% mutate(across(starts_with('GSM'), ~as.numeric(.))) %>% 
   mutate(mean_row = rowMeans(across(where(is.numeric)))) %>% select(mean_row, everything()) %>% 
   arrange(., desc(Gene.name))
@@ -172,7 +177,7 @@ count_multipleIDs_subset = count_reindex %>% filter(Gene.name %in% count_multipl
 ### 
 count_multipleIDs_subset[1:6,1:6]
 ```
-### Third, subset the dataset based on above calculation
+### **Third**, subset the dataset based on above calculation
 
 ```{r}
 count_multipleIDs_subset_selected = count_multipleIDs_subset %>%
@@ -181,7 +186,7 @@ count_multipleIDs_subset_selected = count_multipleIDs_subset %>%
 
 count_multipleIDs_subset_selected[1:6,1:6]
 ```
-### Finally, combine rows with multiple ID after filtering and rows with unique IDs
+### **Finally**, combine rows with multiple ID after filtering and rows with unique IDs
 
 ```{r}
 count_uniqueIDs = count_reindex %>% filter(!(Gene.name %in% count_multipleIDs$Gene.name))
@@ -191,7 +196,7 @@ sample2count_processed = rbind(count_uniqueIDs, count_multipleIDs_subset_selecte
 dim(sample2count_processed)
 ```
 
-**In summary, the proceed table contains the count data of 19452 protein-coding gene.**
+**In summary, the proceed table contains the count data of 19081 protein-coding gene.**
 
 ```{r}
 sample2count_processed[1:6, 1:6]

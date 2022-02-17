@@ -46,6 +46,7 @@ library(clusterProfiler)
 library(GEOquery)
 library(openxlsx)
 library(GEOquery)
+library(ggrepel)
 ```
 
 ## 2.2 Load data you've prepared
@@ -254,10 +255,20 @@ percentVar = round(100 * attr(pcadata, "percentVar"))
 pcadata_p = ggplot(pcadata, aes(x = PC1, y = PC2, color = factor(conds))) + 
   geom_point(size =3, aes(fill=factor(conds),shape=factor(conds))) + 
   scale_shape_manual(values=c(16,18,17,15,14,13)) + 
+  geom_label_repel(aes(label = name),box.padding = 0.35, point.padding = 0.5, segment.color = 'grey50') +
   xlab(paste0("PC1: ", percentVar[1], "% variance")) + ylab(paste0("PC2: ", percentVar[2], "% variance")) + 
   theme(axis.text.x = element_blank(), axis.title = element_text(size = 16), legend.text = element_text(size = 12)) + theme_bw()
 
 ggsave(pcadata_p, filename = "./Figures/00-pca_group.pdf", height = 3.5, width = 5)
+
+pcadata_p_withname = ggplot(pcadata, aes(x = PC1, y = PC2, color = factor(conds))) +
+  geom_point(size =3, aes(fill=factor(conds),shape=factor(conds))) +
+  scale_shape_manual(values=c(16,18,17,15,14,13)) +
+  geom_label_repel(aes(label = name),box.padding = 0.35, point.padding = 0.5, segment.color = 'grey50') +
+  xlab(paste0("PC1: ", percentVar[1], "% variance")) + ylab(paste0("PC2: ", percentVar[2], "% variance")) +
+  theme(axis.text.x = element_blank(), axis.title = element_text(size = 16), legend.text = element_text(size = 12)) + theme_bw()
+
+ggsave(pcadata_p, filename = "./Figures/00-pca_group_withname.pdf", height = 6, width = 8)
 ```
 
 **please try other method (such as log2, rlog) and generate the graphs for the analyses.**

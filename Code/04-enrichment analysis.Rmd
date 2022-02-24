@@ -1,0 +1,185 @@
+---
+title: "Dysregulated processes in NAFLD (BB103X)"
+author: "Hong Yang"
+date: "10/02/2022"
+output:
+  pdf_document: default
+  number_sections: yes
+  ioslides_presentation: default
+  html_document:
+    df_print: paged
+  powerpoint_presentation: default
+  beamer_presentation: default
+  slidy_presentation: default
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(engine.opts = list(bash = "-l"))
+```
+
+```{css, echo=FALSE}
+h1, h2 {
+  text-align: center;
+  color: black;
+  font-weight: bold;
+}
+```
+
+## 3.1 Load necessary packages
+
+- Rstudio
+```{r, message=FALSE}
+library(DESeq2)
+library(pheatmap)
+library(tidyverse)
+library(xlsx)
+library(readxl)
+library(gplots)
+library(ggbiplot)
+library(piano)
+library(venn)
+library(clusterProfiler)
+library(GEOquery)
+library(openxlsx)
+library(GEOquery)
+library(ggrepel)
+library(MAGeCKFlute)
+library(DOSE)
+library(org.Hs.eg.db)
+```
+
+## 3.2 Load data from differential analysis
+
+```{r}
+deseq_data = read.xlsx('data/DEseq_results_NAFLvscontrol.xlsx')
+head(deseq_data)
+```
+## 3.3 Basic statistic - differential expressed gene
+
+- padj < 0.05
+- log2FoldChange > 1 or log2FoldChange <-1
+
+```{r}
+deseq_data_sig = deseq_data %>% 
+  mutate(sig = case_when((padj < 0.05 & log2FoldChange < -1) ~ "Down",
+                         (padj < 0.05 & log2FoldChange > 1) ~ "Up",
+                         TRUE ~ "No")) %>% 
+  filter(!(sig == 'No'))
+head(deseq_data_sig)
+```
+
+## 3.4 summary - differential expressed gene
+
+
+```{r}
+table(deseq_data_sig$sig)
+```
+
+## 3.4 GO enrichment - differential expressed gene
+
+- GO ontology enrichment
+
+```{r}
+ego_bp <- enrichGO(gene         = deseq_data_sig$Gene.name,
+                OrgDb         = org.Hs.eg.db,
+                keyType       = 'SYMBOL',
+                ont           = "BP",
+                pAdjustMethod = "BH",
+                pvalueCutoff  = 0.01,
+                qvalueCutoff  = 0.05)
+
+head(ego_bp@result)
+```
+
+```{r}
+y <- mutate(ego_bp, richFactor = Count / as.numeric(sub("/\\d+", "", BgRatio)))
+
+ggplot(y, showCategory = 10, 
+  aes(richFactor, fct_reorder(Description, richFactor))) + 
+  geom_segment(aes(xend=0, yend = Description)) +
+  geom_point(aes(color=p.adjust, size = Count)) +
+  scale_color_viridis_c(guide=guide_colorbar(reverse=TRUE)) +
+  scale_size_continuous(range=c(1, 6)) +
+  theme_minimal() + 
+  xlab("rich factor") +
+  ylab(NULL) + 
+  ggtitle("Enriched GO Ontology - biological process")
+```
+
+
+## 3.4 KEGG enrichment - differential expressed gene
+
+- KEGG pathway enrichment
+
+```{r}
+entrezID <- TransGeneID(deseq_data_sig$Gene.name, 
+                        fromType = "Symbol",
+                        toType = "Entrez",
+                        organism = "hsa")
+
+entrezID = as.data.frame(entrezID) %>% mutate(Gene.name = rownames(.))
+rownames(deseq_data_sig)  = deseq_data_sig$Gene.name
+deseq_data_sig_withID = merge(deseq_data_sig, entrezID, by = 'Gene.name')
+
+geneList = deseq_data_sig_withID$log2FoldChange
+names(geneList) = as.character(deseq_data_sig_withID$entrezID)
+geneList = sort(geneList, decreasing = TRUE)
+gene <- names(geneList)[abs(geneList) > 2]
+
+kk <- enrichKEGG(gene     = gene,
+                 organism = 'hsa',
+                 pvalueCutoff = 0.05)
+head(kk@result)
+```
+
+```{r}
+y <- mutate(kk, richFactor = Count / as.numeric(sub("/\\d+", "", BgRatio)))
+
+ggplot(y, showCategory = 10, 
+  aes(richFactor, fct_reorder(Description, richFactor))) + 
+  geom_segment(aes(xend=0, yend = Description)) +
+  geom_point(aes(color=p.adjust, size = Count)) +
+  scale_color_viridis_c(guide=guide_colorbar(reverse=TRUE)) +
+  scale_size_continuous(range=c(1, 6)) +
+  theme_minimal() + 
+  xlab("rich factor") +
+  ylab(NULL) + 
+  ggtitle("Enriched KEGG Pathway")
+```
+
+
+## 3.4 disease enrichment - differential expressed gene
+
+- disease enrichment
+
+```{r}
+dd <- enrichDO(gene          = gene,
+              ont           = "DO",
+              pvalueCutoff  = 0.05,
+              pAdjustMethod = "BH",
+              universe      = names(geneList),
+              minGSSize     = 5,
+              maxGSSize     = 500,
+              qvalueCutoff  = 0.05,
+              readable      = FALSE)
+head(dd)
+```
+
+```{r}
+y <- mutate(dd, richFactor = Count / as.numeric(sub("/\\d+", "", BgRatio)))
+
+ggplot(y, showCategory = 20, 
+  aes(richFactor, fct_reorder(Description, richFactor))) + 
+  geom_segment(aes(xend=0, yend = Description)) +
+  geom_point(aes(color=p.adjust, size = Count)) +
+  scale_color_viridis_c(guide=guide_colorbar(reverse=TRUE)) +
+  scale_size_continuous(range=c(1, 6)) +
+  theme_minimal() + 
+  xlab("rich factor") +
+  ylab(NULL) + 
+  ggtitle("Enriched Disease Ontology")
+```
+
+

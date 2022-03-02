@@ -13,6 +13,8 @@ This repo contains code and documents for project 'Dysregulated processes in NAF
 
 6 Enrichment analysis
 
-- Gene Ontology (overview)[http://geneontology.org/docs/ontology-documentation/]
-- 
+- Gene Ontology overview http://geneontology.org/docs/ontology-documentation/
+- KEGG pathway https://www.genome.jp/kegg/pathway.html
+- Disease https://www.disgenet.org/
+
 7 Summary

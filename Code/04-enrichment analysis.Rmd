@@ -27,6 +27,14 @@ h1, h2 {
 }
 ```
 
+## Introduction
+
+One common way for searching shared functions among genes is to incorporate the biological knowledge provided by biological ontologies. For instance, 1)Gene Ontology (GO) (Ashburner et al., 2000) annotates genes to biological processes, molecular functions, and cellular components in a directed acyclic graph structure, 2)Kyoto Encyclopedia of Genes and Genomes (KEGG) (Kanehisa et al., 2010) annotates genes to pathways, 3) Disease Ontology (DO) annotates genes with human disease association (Osborne et al., 2009).
+
+The clusterProfiler package is implemented for gene cluster comparison. clusterProfiler applies biological term classification and enrichment analyses to gene cluster comparison, helping to better understand higher order functions of biological system. 
+
+Read paper [Yu, Guangchuang, et al. Omics: a journal of integrative biology 16.5 (2012): 284-287.](https://www.liebertpub.com/doi/10.1089/omi.2011.0118)
+
 ## 3.1 Load necessary packages
 
 - Rstudio
@@ -40,21 +48,29 @@ library(gplots)
 library(ggbiplot)
 library(piano)
 library(venn)
+library(ggpubr)
 library(clusterProfiler)
 library(GEOquery)
+library(MAGeCKFlute)
 library(openxlsx)
 library(GEOquery)
 library(ggrepel)
-library(MAGeCKFlute)
 library(DOSE)
 library(org.Hs.eg.db)
+library(VennDiagram)
 ```
 
 ## 3.2 Load data from differential analysis
 
 ```{r}
-deseq_data = read.xlsx('data/DEseq_results_NAFLvscontrol.xlsx')
-head(deseq_data)
+### Set 1: Deseq results between NAFL/NASH and control
+deseq_data1 = read.xlsx('data/DEseq_results_NAFLvscontrol.xlsx')
+deseq_data2 = read.xlsx('data/DEseq_results_NASH_F0-F1vscontrol.xlsx')
+deseq_data3 = read.xlsx('data/DEseq_results_NASH_F2vscontrol.xlsx')
+deseq_data4 = read.xlsx('data/DEseq_results_NASH_F3vscontrol.xlsx')
+deseq_data5 = read.xlsx('data/DEseq_results_NASH_F4vscontrol.xlsx')
+
+deseq_data1[1:6,c(2,5:7)]
 ```
 ## 3.3 Basic statistic - differential expressed gene
 
@@ -62,27 +78,113 @@ head(deseq_data)
 - log2FoldChange > 1 or log2FoldChange <-1
 
 ```{r}
-deseq_data_sig = deseq_data %>% 
+deseq_data_sig1 = deseq_data1 %>% 
   mutate(sig = case_when((padj < 0.05 & log2FoldChange < -1) ~ "Down",
                          (padj < 0.05 & log2FoldChange > 1) ~ "Up",
                          TRUE ~ "No")) %>% 
   filter(!(sig == 'No'))
-head(deseq_data_sig)
+
+deseq_data_sig2 = deseq_data2 %>% 
+  mutate(sig = case_when((padj < 0.05 & log2FoldChange < -1) ~ "Down",
+                         (padj < 0.05 & log2FoldChange > 1) ~ "Up",
+                         TRUE ~ "No")) %>% 
+  filter(!(sig == 'No'))
+
+deseq_data_sig3 = deseq_data3 %>% 
+  mutate(sig = case_when((padj < 0.05 & log2FoldChange < -1) ~ "Down",
+                         (padj < 0.05 & log2FoldChange > 1) ~ "Up",
+                         TRUE ~ "No")) %>% 
+  filter(!(sig == 'No'))
+
+deseq_data_sig4 = deseq_data4 %>% 
+  mutate(sig = case_when((padj < 0.05 & log2FoldChange < -1) ~ "Down",
+                         (padj < 0.05 & log2FoldChange > 1) ~ "Up",
+                         TRUE ~ "No")) %>% 
+  filter(!(sig == 'No'))
+
+deseq_data_sig5 = deseq_data5 %>% 
+  mutate(sig = case_when((padj < 0.05 & log2FoldChange < -1) ~ "Down",
+                         (padj < 0.05 & log2FoldChange > 1) ~ "Up",
+                         TRUE ~ "No")) %>% 
+  filter(!(sig == 'No'))
+
+deseq_data_sig1[1:6,c(2,5:8)]
 ```
 
 ## 3.4 summary - differential expressed gene
 
 
 ```{r}
-table(deseq_data_sig$sig)
+table(deseq_data_sig1$sig)
 ```
+
+## Venn digram of differentially expressed genes.
+
+- VennDiagram
+
+```{r}
+DEG_list = list()
+DEG_list[[1]] = deseq_data_sig1$Gene.name
+DEG_list[[2]] = deseq_data_sig2$Gene.name
+DEG_list[[3]] = deseq_data_sig3$Gene.name
+DEG_list[[4]] = deseq_data_sig4$Gene.name
+DEG_list[[5]] = deseq_data_sig5$Gene.name
+
+venn.diagram(DEG_list, category.names = c("NAFLvsControl",
+                                          "NASH_F0-F1vscontrol",
+                                          "NASH_F2vscontrol",
+                                          "NASH_F3vscontrol",
+                                          "NASH_F4vscontrol"),
+             filename = 'Figures/01_venn_diagramm_DEGs.png',
+             output = TRUE ,
+             imagetype="png" ,height = 480 , width = 480 , resolution = 300,compression = "lzw",lwd = 1,
+             col=c("#fbb4ae", '#b3cde3', '#ccebc5', '#decbe4','#fed9a6'),
+             fill = c("#fbb4ae", '#b3cde3', '#ccebc5', '#decbe4','#fed9a6'),
+             cex = 0.3,fontfamily = "sans",cat.cex = 0.3,
+             cat.default.pos = "outer",cat.pos = c(-27, 4, 140, 170,6))
+```
+
+![](Figures/01_venn_diagramm_DEGs.png){width=30%}
+
+## 3.4 Bar plot shows the number of DEGs at each comparison
+
+- basic summary
+```{r}
+all_DEGs = rbind(as.data.frame(table(deseq_data_sig1$sig)), 
+                 as.data.frame(table(deseq_data_sig2$sig)),
+                 as.data.frame(table(deseq_data_sig3$sig)),
+                 as.data.frame(table(deseq_data_sig4$sig)),
+                 as.data.frame(table(deseq_data_sig5$sig)))
+all_DEGs = all_DEGs %>% mutate(comp = c(rep('NAFLvsControl',2),
+                                        rep('NASH_F0-F1vscontrol',2),
+                                        rep('NASH_F2vscontrol',2),
+                                        rep('NASH_F3vscontrol',2),
+                                        rep('NASH_F4vscontrol',2)))
+
+all_DEGs
+```
+
+- Visualization
+ 
+```{r}
+DEGs_bar = ggplot(all_DEGs, aes(comp, Freq, fill = Var1)) + geom_bar(stat="identity") + 
+  geom_text(colour = "black", size = 3.5,aes(label = Freq),position=position_stack(vjust=0.5)) +
+  theme_bw() + labs(fill = 'Direction', y = 'Number of DEGs') +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        axis.title.x = element_blank())
+ggsave(DEGs_bar, filename = 'Figures/01-barplot_DEGs.pdf', width = 7, height = 4)
+```
+
+
+![](Figures/01-barplot_DEGs.pdf){width=50%}
+
 
 ## 3.4 GO enrichment - differential expressed gene
 
 - GO ontology enrichment
 
 ```{r}
-ego_bp <- enrichGO(gene         = deseq_data_sig$Gene.name,
+ego_bp1 <- enrichGO(gene         = deseq_data_sig1$Gene.name,
                 OrgDb         = org.Hs.eg.db,
                 keyType       = 'SYMBOL',
                 ont           = "BP",
@@ -90,13 +192,53 @@ ego_bp <- enrichGO(gene         = deseq_data_sig$Gene.name,
                 pvalueCutoff  = 0.01,
                 qvalueCutoff  = 0.05)
 
-head(ego_bp@result)
+ego_bp2 <- enrichGO(gene         = deseq_data_sig2$Gene.name,
+                OrgDb         = org.Hs.eg.db,
+                keyType       = 'SYMBOL',
+                ont           = "BP",
+                pAdjustMethod = "BH",
+                pvalueCutoff  = 0.01,
+                qvalueCutoff  = 0.05)
+
+
+ego_bp3 <- enrichGO(gene         = deseq_data_sig3$Gene.name,
+                OrgDb         = org.Hs.eg.db,
+                keyType       = 'SYMBOL',
+                ont           = "BP",
+                pAdjustMethod = "BH",
+                pvalueCutoff  = 0.01,
+                qvalueCutoff  = 0.05)
+
+
+
+ego_bp4 <- enrichGO(gene         = deseq_data_sig4$Gene.name,
+                OrgDb         = org.Hs.eg.db,
+                keyType       = 'SYMBOL',
+                ont           = "BP",
+                pAdjustMethod = "BH",
+                pvalueCutoff  = 0.01,
+                qvalueCutoff  = 0.05)
+
+
+ego_bp5 <- enrichGO(gene         = deseq_data_sig5$Gene.name,
+                OrgDb         = org.Hs.eg.db,
+                keyType       = 'SYMBOL',
+                ont           = "BP",
+                pAdjustMethod = "BH",
+                pvalueCutoff  = 0.01,
+                qvalueCutoff  = 0.05)
+
+list_ego = list('NAFLvsControl' = ego_bp1, 'NASH_F0-F1vscontrol' = ego_bp2, 
+                'NASH_F2vscontrol' = ego_bp3, 'NASH_F3vscontrol' = ego_bp4, 'NASH_F4vscontrol' = ego_bp5)
+
+write.xlsx(list_ego, file = 'data/GO_BP_enrichment.NAFLorNASHvsControl.xlsx')
+
 ```
 
 ```{r}
-y <- mutate(ego_bp, richFactor = Count / as.numeric(sub("/\\d+", "", BgRatio)))
+y1 <- mutate(ego_bp1, richFactor = Count / as.numeric(sub("/\\d+", "", BgRatio)))
 
-ggplot(y, showCategory = 10, 
+y1_p = ggplot(y1, showCategory = 10, 
   aes(richFactor, fct_reorder(Description, richFactor))) + 
   geom_segment(aes(xend=0, yend = Description)) +
   geom_point(aes(color=p.adjust, size = Count)) +
@@ -104,9 +246,26 @@ ggplot(y, showCategory = 10,
   scale_size_continuous(range=c(1, 6)) +
   theme_minimal() + 
   xlab("rich factor") +
-  ylab(NULL) + 
-  ggtitle("Enriched GO Ontology - biological process")
+  ylab(NULL) + ggtitle('NAFL vs control') + ggeasy::easy_center_title() + ggeasy::easy_plot_title_size(8)
+
+y2 <- mutate(ego_bp2, richFactor = Count / as.numeric(sub("/\\d+", "", BgRatio)))
+
+y2_p = ggplot(y2, showCategory = 10, 
+  aes(richFactor, fct_reorder(Description, richFactor))) + 
+  geom_segment(aes(xend=0, yend = Description)) +
+  geom_point(aes(color=p.adjust, size = Count)) +
+  scale_color_viridis_c(guide=guide_colorbar(reverse=TRUE)) +
+  scale_size_continuous(range=c(1, 6)) +
+  theme_minimal() + 
+  xlab("rich factor") +
+  ylab(NULL)  + ggtitle('NASH_F0-F1 vs control') + ggeasy::easy_center_title() + ggeasy::easy_plot_title_size(8)
+
+y1andy2 = ggarrange(y1_p, y2_p, ncol = 2, common.legend = TRUE, legend = 'right') 
+
+ggsave(y1andy2, filename = 'Figures/02-goEnrichr-NAFL&NASHf0f1vsControl.pdf', width = 8.5, height = 3.5)
 ```
+
+![](Figures/02-goEnrichr-NAFL&NASHf0f1vsControl.pdf){width=80%}
 
 
 ## 3.4 KEGG enrichment - differential expressed gene
@@ -114,30 +273,119 @@ ggplot(y, showCategory = 10,
 - KEGG pathway enrichment
 
 ```{r}
-entrezID <- TransGeneID(deseq_data_sig$Gene.name, 
+### NAFL vs Control
+
+entrezID <- TransGeneID(deseq_data_sig1$Gene.name, 
                         fromType = "Symbol",
                         toType = "Entrez",
                         organism = "hsa")
 
 entrezID = as.data.frame(entrezID) %>% mutate(Gene.name = rownames(.))
-rownames(deseq_data_sig)  = deseq_data_sig$Gene.name
-deseq_data_sig_withID = merge(deseq_data_sig, entrezID, by = 'Gene.name')
+rownames(deseq_data_sig1)  = deseq_data_sig1$Gene.name
+deseq_data_sig_withID = merge(deseq_data_sig1, entrezID, by = 'Gene.name')
 
 geneList = deseq_data_sig_withID$log2FoldChange
 names(geneList) = as.character(deseq_data_sig_withID$entrezID)
 geneList = sort(geneList, decreasing = TRUE)
 gene <- names(geneList)[abs(geneList) > 2]
 
-kk <- enrichKEGG(gene     = gene,
+kk1 <- enrichKEGG(gene     = gene,
                  organism = 'hsa',
                  pvalueCutoff = 0.05)
-head(kk@result)
+rm(entrezID, deseq_data_sig_withID, geneList, gene)
+
+### NASH_F0-F1 vs Control
+entrezID <- TransGeneID(deseq_data_sig2$Gene.name, 
+                        fromType = "Symbol",
+                        toType = "Entrez",
+                        organism = "hsa")
+
+entrezID = as.data.frame(entrezID) %>% mutate(Gene.name = rownames(.))
+rownames(deseq_data_sig2)  = deseq_data_sig2$Gene.name
+deseq_data_sig_withID = merge(deseq_data_sig2, entrezID, by = 'Gene.name')
+
+geneList = deseq_data_sig_withID$log2FoldChange
+names(geneList) = as.character(deseq_data_sig_withID$entrezID)
+geneList = sort(geneList, decreasing = TRUE)
+gene <- names(geneList)[abs(geneList) > 2]
+
+kk2 <- enrichKEGG(gene     = gene,
+                 organism = 'hsa',
+                 pvalueCutoff = 0.05)
+
+rm(entrezID, deseq_data_sig_withID, geneList, gene)
+
+### NASH_F2 vs Control
+entrezID <- TransGeneID(deseq_data_sig3$Gene.name, 
+                        fromType = "Symbol",
+                        toType = "Entrez",
+                        organism = "hsa")
+
+entrezID = as.data.frame(entrezID) %>% mutate(Gene.name = rownames(.))
+rownames(deseq_data_sig3)  = deseq_data_sig3$Gene.name
+deseq_data_sig_withID = merge(deseq_data_sig3, entrezID, by = 'Gene.name')
+
+geneList = deseq_data_sig_withID$log2FoldChange
+names(geneList) = as.character(deseq_data_sig_withID$entrezID)
+geneList = sort(geneList, decreasing = TRUE)
+gene <- names(geneList)[abs(geneList) > 2]
+
+kk3 <- enrichKEGG(gene     = gene,
+                 organism = 'hsa',
+                 pvalueCutoff = 0.05)
+
+rm(entrezID, deseq_data_sig_withID, geneList, gene)
+
+### NASH_F3 vs Control
+entrezID <- TransGeneID(deseq_data_sig4$Gene.name, 
+                        fromType = "Symbol",
+                        toType = "Entrez",
+                        organism = "hsa")
+
+entrezID = as.data.frame(entrezID) %>% mutate(Gene.name = rownames(.))
+rownames(deseq_data_sig4)  = deseq_data_sig4$Gene.name
+deseq_data_sig_withID = merge(deseq_data_sig4, entrezID, by = 'Gene.name')
+
+geneList = deseq_data_sig_withID$log2FoldChange
+names(geneList) = as.character(deseq_data_sig_withID$entrezID)
+geneList = sort(geneList, decreasing = TRUE)
+gene <- names(geneList)[abs(geneList) > 2]
+
+kk4 <- enrichKEGG(gene     = gene,
+                 organism = 'hsa',
+                 pvalueCutoff = 0.05)
+rm(entrezID, deseq_data_sig_withID, geneList, gene)
+
+### NASH_F4 vs Control
+entrezID <- TransGeneID(deseq_data_sig5$Gene.name, 
+                        fromType = "Symbol",
+                        toType = "Entrez",
+                        organism = "hsa")
+
+entrezID = as.data.frame(entrezID) %>% mutate(Gene.name = rownames(.))
+rownames(deseq_data_sig5)  = deseq_data_sig5$Gene.name
+deseq_data_sig_withID = merge(deseq_data_sig5, entrezID, by = 'Gene.name')
+
+geneList = deseq_data_sig_withID$log2FoldChange
+names(geneList) = as.character(deseq_data_sig_withID$entrezID)
+geneList = sort(geneList, decreasing = TRUE)
+gene <- names(geneList)[abs(geneList) > 2]
+
+kk5<- enrichKEGG(gene     = gene,
+                 organism = 'hsa',
+                 pvalueCutoff = 0.05)
+
+list_kk = list('NAFLvsControl' = kk1, 'NASH_F0-F1vscontrol' = kk2, 
+                'NASH_F2vscontrol' = kk3, 'NASH_F3vscontrol' = kk4, 'NASH_F4vscontrol' = kk5)
+
+write.xlsx(list_kk, file = 'data/KEGG_pathway_enrichment.NAFLorNASHvsControl.xlsx')
+
 ```
 
 ```{r}
-y <- mutate(kk, richFactor = Count / as.numeric(sub("/\\d+", "", BgRatio)))
+y1 <- mutate(kk1, richFactor = Count / as.numeric(sub("/\\d+", "", BgRatio)))
 
-ggplot(y, showCategory = 10, 
+y1_p = ggplot(y1, showCategory = 10, 
   aes(richFactor, fct_reorder(Description, richFactor))) + 
   geom_segment(aes(xend=0, yend = Description)) +
   geom_point(aes(color=p.adjust, size = Count)) +
@@ -145,17 +393,47 @@ ggplot(y, showCategory = 10,
   scale_size_continuous(range=c(1, 6)) +
   theme_minimal() + 
   xlab("rich factor") +
-  ylab(NULL) + 
-  ggtitle("Enriched KEGG Pathway")
+  ylab(NULL) + ggtitle('NASH_F0-F1 vs control') + ggeasy::easy_center_title() + ggeasy::easy_plot_title_size(8)
+
+y2 <- mutate(kk2, richFactor = Count / as.numeric(sub("/\\d+", "", BgRatio)))
+
+y2_p = ggplot(y2, showCategory = 10, 
+  aes(richFactor, fct_reorder(Description, richFactor))) + 
+  geom_segment(aes(xend=0, yend = Description)) +
+  geom_point(aes(color=p.adjust, size = Count)) +
+  scale_color_viridis_c(guide=guide_colorbar(reverse=TRUE)) +
+  scale_size_continuous(range=c(1, 6)) +
+  theme_minimal() + 
+  xlab("rich factor") +
+  ylab(NULL) + ggtitle('NASH_F0-F1 vs control') + ggeasy::easy_center_title() + ggeasy::easy_plot_title_size(8)
+
+y1andy2 = ggarrange(y1_p, y2_p, ncol = 2, common.legend = TRUE, legend = 'right') 
+
+ggsave(y1andy2, filename = 'Figures/02-KEGGEnrichr-NAFL&NASHf0f1vsControl.pdf', width = 12, height = 3.5)
 ```
 
+![](Figures/02-KEGGEnrichr-NAFL&NASHf0f1vsControl.pdf){width=80%}
 
 ## 3.4 disease enrichment - differential expressed gene
 
 - disease enrichment
 
 ```{r}
-dd <- enrichDO(gene          = gene,
+entrezID <- TransGeneID(deseq_data_sig1$Gene.name, 
+                        fromType = "Symbol",
+                        toType = "Entrez",
+                        organism = "hsa")
+
+entrezID = as.data.frame(entrezID) %>% mutate(Gene.name = rownames(.))
+rownames(deseq_data_sig1)  = deseq_data_sig1$Gene.name
+deseq_data_sig_withID = merge(deseq_data_sig1, entrezID, by = 'Gene.name')
+
+geneList = deseq_data_sig_withID$log2FoldChange
+names(geneList) = as.character(deseq_data_sig_withID$entrezID)
+geneList = sort(geneList, decreasing = TRUE)
+gene <- names(geneList)[abs(geneList) > 2]
+
+dd1 <- enrichDO(gene          = gene,
               ont           = "DO",
               pvalueCutoff  = 0.05,
               pAdjustMethod = "BH",
@@ -164,11 +442,121 @@ dd <- enrichDO(gene          = gene,
               maxGSSize     = 500,
               qvalueCutoff  = 0.05,
               readable      = FALSE)
-head(dd)
+
+rm(entrezID, deseq_data_sig_withID, geneList, gene)
+
+### NASH_F0-F1 vs Control
+entrezID <- TransGeneID(deseq_data_sig2$Gene.name, 
+                        fromType = "Symbol",
+                        toType = "Entrez",
+                        organism = "hsa")
+
+entrezID = as.data.frame(entrezID) %>% mutate(Gene.name = rownames(.))
+rownames(deseq_data_sig2)  = deseq_data_sig2$Gene.name
+deseq_data_sig_withID = merge(deseq_data_sig2, entrezID, by = 'Gene.name')
+
+geneList = deseq_data_sig_withID$log2FoldChange
+names(geneList) = as.character(deseq_data_sig_withID$entrezID)
+geneList = sort(geneList, decreasing = TRUE)
+gene <- names(geneList)[abs(geneList) > 2]
+
+dd2 <- enrichDO(gene          = gene,
+              ont           = "DO",
+              pvalueCutoff  = 0.05,
+              pAdjustMethod = "BH",
+              universe      = names(geneList),
+              minGSSize     = 5,
+              maxGSSize     = 500,
+              qvalueCutoff  = 0.05,
+              readable      = FALSE)
+rm(entrezID, deseq_data_sig_withID, geneList, gene)
+
+### NASH_F2 vs Control
+entrezID <- TransGeneID(deseq_data_sig3$Gene.name, 
+                        fromType = "Symbol",
+                        toType = "Entrez",
+                        organism = "hsa")
+
+entrezID = as.data.frame(entrezID) %>% mutate(Gene.name = rownames(.))
+rownames(deseq_data_sig3)  = deseq_data_sig3$Gene.name
+deseq_data_sig_withID = merge(deseq_data_sig3, entrezID, by = 'Gene.name')
+
+geneList = deseq_data_sig_withID$log2FoldChange
+names(geneList) = as.character(deseq_data_sig_withID$entrezID)
+geneList = sort(geneList, decreasing = TRUE)
+gene <- names(geneList)[abs(geneList) > 2]
+
+dd3 <- enrichDO(gene          = gene,
+              ont           = "DO",
+              pvalueCutoff  = 0.05,
+              pAdjustMethod = "BH",
+              universe      = names(geneList),
+              minGSSize     = 5,
+              maxGSSize     = 500,
+              qvalueCutoff  = 0.05,
+              readable      = FALSE)
+rm(entrezID, deseq_data_sig_withID, geneList, gene)
+
+### NASH_F3 vs Control
+entrezID <- TransGeneID(deseq_data_sig4$Gene.name, 
+                        fromType = "Symbol",
+                        toType = "Entrez",
+                        organism = "hsa")
+
+entrezID = as.data.frame(entrezID) %>% mutate(Gene.name = rownames(.))
+rownames(deseq_data_sig4)  = deseq_data_sig4$Gene.name
+deseq_data_sig_withID = merge(deseq_data_sig4, entrezID, by = 'Gene.name')
+
+geneList = deseq_data_sig_withID$log2FoldChange
+names(geneList) = as.character(deseq_data_sig_withID$entrezID)
+geneList = sort(geneList, decreasing = TRUE)
+gene <- names(geneList)[abs(geneList) > 2]
+
+dd4 <- enrichDO(gene          = gene,
+              ont           = "DO",
+              pvalueCutoff  = 0.05,
+              pAdjustMethod = "BH",
+              universe      = names(geneList),
+              minGSSize     = 5,
+              maxGSSize     = 500,
+              qvalueCutoff  = 0.05,
+              readable      = FALSE)
+rm(entrezID, deseq_data_sig_withID, geneList, gene)
+
+### NASH_F4 vs Control
+entrezID <- TransGeneID(deseq_data_sig5$Gene.name, 
+                        fromType = "Symbol",
+                        toType = "Entrez",
+                        organism = "hsa")
+
+entrezID = as.data.frame(entrezID) %>% mutate(Gene.name = rownames(.))
+rownames(deseq_data_sig5)  = deseq_data_sig5$Gene.name
+deseq_data_sig_withID = merge(deseq_data_sig5, entrezID, by = 'Gene.name')
+
+geneList = deseq_data_sig_withID$log2FoldChange
+names(geneList) = as.character(deseq_data_sig_withID$entrezID)
+geneList = sort(geneList, decreasing = TRUE)
+gene <- names(geneList)[abs(geneList) > 2]
+
+dd5 <- enrichDO(gene          = gene,
+              ont           = "DO",
+              pvalueCutoff  = 0.05,
+              pAdjustMethod = "BH",
+              universe      = names(geneList),
+              minGSSize     = 5,
+              maxGSSize     = 500,
+              qvalueCutoff  = 0.05,
+              readable      = FALSE)
+rm(entrezID, deseq_data_sig_withID, geneList, gene)
+
+list_dd= list('NAFLvsControl' = dd1, 'NASH_F0-F1vscontrol' = dd2, 
+                'NASH_F2vscontrol' = dd3, 'NASH_F3vscontrol' = dd4, 'NASH_F4vscontrol' = dd5)
+
+write.xlsx(list_dd, file = 'data/Disease_enrichment.NAFLorNASHvsControl.xlsx')
 ```
 
 ```{r}
-y <- mutate(dd, richFactor = Count / as.numeric(sub("/\\d+", "", BgRatio)))
+y <- mutate(dd1, richFactor = Count / as.numeric(sub("/\\d+", "", BgRatio)))
 
 ggplot(y, showCategory = 20, 
   aes(richFactor, fct_reorder(Description, richFactor))) + 
